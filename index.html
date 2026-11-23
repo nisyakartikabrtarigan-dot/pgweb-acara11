@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Web-GIS dengan GeoServer dan Leaflet</title>
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        width: 100%;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- Plugin Leaflet GeoServer -->
+    <script src="lib/L.Geoserver.js"></script>
+
+    <script>
+      // ------------------------------------------------------------
+      // Batas layer pgweb11:jumlah_pddk (diambil dari bbox GeoServer)
+      // bbox = 122.6477921720001, -8.647220457999936, 123.33921143000009, -8.063357603999975
+      // Format Leaflet: [[minLat, minLng], [maxLat, maxLng]]
+      // ------------------------------------------------------------
+      var bounds = [
+        [-8.647220458, 122.647792172],
+        [-8.063357604, 123.33921143],
+      ];
+
+      // Inisialisasi peta lalu sesuaikan pusat & zoom dengan area layer
+      //var map = L.map("map");
+      //map.fitBounds(bounds);
+
+      // Alternatif jika ingin pakai setView:
+      var map = L.map("map").setView([-8.355289, 122.993502], 10);
+
+      // Basemap OpenStreetMap
+      var osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      });
+      osm.addTo(map);
+
+      // ------------------------------------------------------------
+      // WMS: layer jumlah penduduk
+      // ------------------------------------------------------------
+      var wmsLayer = L.Geoserver.wms("http://localhost:8080/geoserver/pgweb11/wms", {
+        layers: "pgweb11:jumlah_pddk",
+        transparent: true,
+        attribution: "Jumlah penduduk",
+        // CQL_FILTER: "NAMA_ATRIBUT='nilai'", // aktifkan jika perlu filter
+      });
+      wmsLayer.addTo(map);
+
+      // ------------------------------------------------------------
+      // WFS (opsional): data vektor dengan popup
+      // Hapus komentar pada wfsLayer.addTo(map) untuk mengaktifkan
+      // ------------------------------------------------------------
+      var wfsLayer = L.Geoserver.wfs("http://localhost:8080/geoserver/pgweb11/wfs", {
+        layers: "pgweb11:jumlah_pddk",
+        style: {
+          color: "black",
+          fillOpacity: 0.3,
+          fillColor: "red",
+        },
+        onEachFeature: function (feature, layer) {
+          console.log(feature);
+          // Tampilkan semua atribut di popup
+          var isi = "";
+          for (var key in feature.properties) {
+            isi += "<b>" + key + "</b>: " + feature.properties[key] + "<br>";
+          }
+          layer.bindPopup(isi);
+        },
+      });
+      // wfsLayer.addTo(map);
+
+      // ------------------------------------------------------------
+      // Legenda
+      // ------------------------------------------------------------
+      var layerLegend = L.Geoserver.legend(
+        "http://localhost:8080/geoserver/pgweb11/wms",
+        {
+          layers: "pgweb11:jumlah_pddk",
+        }
+      );
+      layerLegend.addTo(map);
+
+      // ------------------------------------------------------------
+      // Kontrol layer (basemap & overlay)
+      // ------------------------------------------------------------
+      L.control
+        .layers(
+          { OpenStreetMap: osm },
+          {
+            "Jumlah Penduduk (WMS)": wmsLayer,
+            "Jumlah Penduduk (WFS)": wfsLayer,
+          }
+        )
+        .addTo(map);
+    </script>
+  </body>
+</html>
